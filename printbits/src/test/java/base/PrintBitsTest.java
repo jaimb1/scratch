@@ -5,19 +5,24 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class PrintBitsTest {
   private static PrintStream originalStdOut;
+  private static InputStream originalStdin;
   private static ByteArrayOutputStream testOut;
 
   @BeforeAll
   static void beforeAll() {
     originalStdOut = System.out;
+    originalStdin = System.in;
     testOut = new ByteArrayOutputStream();
     System.setOut(new PrintStream(testOut));
   }
@@ -25,6 +30,7 @@ class PrintBitsTest {
   @AfterAll
   static void afterAll() throws IOException {
     System.setOut(originalStdOut);
+    System.setIn(originalStdin);
     testOut.close();
   }
 
@@ -140,6 +146,31 @@ class PrintBitsTest {
     PrintBits.printBytes(Long.MAX_VALUE, Long.BYTES);
     assertEquals(
         "0111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111",
+        testOut.toString());
+  }
+
+  @Test
+  void testMainPositionalArgs() {
+    final String[] args = new String[] {"-b", "3", "-1"};
+    PrintBits.main(args);
+
+    assertEquals(
+        "-1" + System.lineSeparator() +
+            "1111 1111 1111 1111 1111 1111" + System.lineSeparator(),
+        testOut.toString());
+  }
+
+  @Test
+  void testMainStdin() {
+    final ByteArrayInputStream inputStream =
+        new ByteArrayInputStream("-1".getBytes(StandardCharsets.UTF_8));
+    System.setIn(inputStream);
+    final String[] args = new String[] {"-b", "3"};
+    PrintBits.main(args);
+
+    assertEquals(
+        "-1" + System.lineSeparator() +
+            "1111 1111 1111 1111 1111 1111" + System.lineSeparator(),
         testOut.toString());
   }
 }

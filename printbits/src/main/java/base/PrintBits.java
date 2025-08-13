@@ -60,14 +60,18 @@ public class PrintBits {
     }
   }
 
-  private static void printHelp(final Options options) throws IOException {
+  private static void printHelp(final Options options) {
     final HelpFormatter formatter = HelpFormatter.builder().get();
-    formatter.printHelp(
-        "printbits [options] num1 num2...",
-        "Print bits in twos complement form",
-        options,
-        "",
-        true);
+    try {
+      formatter.printHelp(
+          "printbits [options] num1 num2...",
+          "Print bits in twos complement form",
+          options,
+          "",
+          false);
+    } catch (final IOException e) {
+      System.out.println("Unabled to print help instructions: " + e.getMessage());
+    }
   }
 
   private static Options buildOptions() {
@@ -79,9 +83,9 @@ public class PrintBits {
         .desc("The number of bytes to print")
         .type(Integer.class)
         .get());
-    options.addOption(Option.builder("-")
+    options.addOption(Option.builder("i")
+        .longOpt("stdin")
         .desc("Read from stdin")
-        .type(String.class)
         .get());
     return options;
   }
@@ -90,29 +94,42 @@ public class PrintBits {
     return (bytes == null) ? getMinBytesRequired(n) : bytes;
   }
 
-  public static void main(final String[] args) throws IOException {
+  private static void doPrint(final Integer bytes, final long n) {
+    System.out.println(n);
+    PrintBits.printBytes(n, getBytesToPrint(bytes, n));
+    System.out.println();
+  }
+
+  private static void readFromPositionalArgs(
+      final String[] positionalArgs,
+      final Integer bytes) {
+    Arrays.stream(positionalArgs)
+        .mapToLong(Long::parseLong)
+        .forEach(n -> doPrint(bytes, n));
+  }
+
+  private static void readFromStdin(final Integer bytes) {
+    final Scanner scanner = new Scanner(System.in);
+    while (scanner.hasNext()) {
+      final long n = scanner.nextLong();
+      doPrint(bytes, n);
+    }
+  }
+
+  public static void main(final String[] args) {
     final Options options = buildOptions();
     try {
       final CommandLineParser parser = new DefaultParser();
-      final CommandLine cmd = parser.parse(options, args);
+      final CommandLine cmd = parser.parse(options, args, true);
 
       final Integer bytes = cmd.getParsedOptionValue(options.getOption("b"));
-      final boolean fromStdin = cmd.hasOption(options.getOption("-"));
+      final boolean fromStdin = cmd.hasOption(options.getOption("i"));
+      final String[] positionalArgs = cmd.getArgs();
 
-      if (fromStdin) {
-        final Scanner scanner = new Scanner(System.in);
-        while (scanner.hasNext()) {
-          final long n = scanner.nextLong();
-          printBytes(n, 4);
-        }
+      if (fromStdin || positionalArgs.length == 0) {
+        readFromStdin(bytes);
       } else {
-        Arrays.stream(cmd.getArgs())
-            .mapToLong(Long::parseLong)
-            .forEach(n -> {
-              System.out.println(n);
-              PrintBits.printBytes(n, getBytesToPrint(bytes, n));
-              System.out.println("-----");
-            });
+        readFromPositionalArgs(positionalArgs, bytes);
       }
     } catch (final ParseException | NumberFormatException e) {
       printHelp(options);

@@ -15,11 +15,12 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>print-bits</groupId>
     <artifactId>printbits</artifactId>
+    <name>printbits</name>
+    <description>A tool that prints number bits in twos complement form</description>
     <version>1.0</version>
-    <name>Print number bits in twos complement form</name>
     <parent>
-        <groupId>simple-projects</groupId>
-        <artifactId>simple-projects</artifactId>
+        <groupId>scratch</groupId>
+        <artifactId>scratch</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
 
@@ -39,4 +40,30 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+
+    <build>
+        <plugins>
+            <!-- Shade Plugin to create executable JAR -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>base.PrintBits</mainClass>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>
