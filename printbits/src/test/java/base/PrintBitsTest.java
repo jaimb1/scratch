@@ -11,8 +11,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
+import java.text.ParseException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PrintBitsTest {
   private static PrintStream originalStdOut;
@@ -150,13 +153,41 @@ class PrintBitsTest {
   }
 
   @Test
-  void testMainPositionalArgs() {
+  void testMainPositionalArgParsing() {
+    final String[] args = new String[] {"-44", "-14444", "-1444444444", "-1444444444444444444"};
+    PrintBits.main(args);
+
+    assertEquals(
+        "-44" + System.lineSeparator() +
+            "1101 0100" + System.lineSeparator() +
+            "-14444" + System.lineSeparator() +
+            "1100 0111 1001 0100" + System.lineSeparator() +
+            "-1444444444" + System.lineSeparator() +
+            "1010 1001 1110 0111 1000 0110 1110 0100" + System.lineSeparator() +
+            "-1444444444444444444" + System.lineSeparator() +
+            "1110 1011 1111 0100 0100 1101 0110 1110 0100 0111 0001 1010 0011 1000 1110 0100" + System.lineSeparator(),
+        testOut.toString());
+  }
+
+  @Test
+  void testMainBytesArg() {
     final String[] args = new String[] {"-b", "3", "-1"};
     PrintBits.main(args);
 
     assertEquals(
         "-1" + System.lineSeparator() +
             "1111 1111 1111 1111 1111 1111" + System.lineSeparator(),
+        testOut.toString());
+  }
+
+  @Test
+  void testMainTypeArg() {
+    final String[] args = new String[] {"-t", "int", "-1"};
+    PrintBits.main(args);
+
+    assertEquals(
+        "-1" + System.lineSeparator() +
+            "1111 1111 1111 1111 1111 1111 1111 1111" + System.lineSeparator(),
         testOut.toString());
   }
 
@@ -172,5 +203,50 @@ class PrintBitsTest {
         "-1" + System.lineSeparator() +
             "1111 1111 1111 1111 1111 1111" + System.lineSeparator(),
         testOut.toString());
+  }
+
+  @Test
+  void testMainOverflow() {
+    PrintBits.main(new String[] {"-b", "1", "-129"});
+    assertTrue(testOut.toString().startsWith("-129" + System.lineSeparator() + "Invalid input:"));
+    testOut.reset();
+    PrintBits.main(new String[] {"-b", "1", "128"});
+    assertTrue(testOut.toString().startsWith("128" + System.lineSeparator() + "Invalid input:"));
+    testOut.reset();
+    PrintBits.main(new String[] {"-b", "2", "-32769"});
+    assertTrue(testOut.toString().startsWith("-32769" + System.lineSeparator() + "Invalid input:"));
+    testOut.reset();
+    PrintBits.main(new String[] {"-b", "2", "32768"});
+    assertTrue(testOut.toString().startsWith("32768" + System.lineSeparator() + "Invalid input:"));
+    testOut.reset();
+    PrintBits.main(new String[] {"-t", "int", "-2147483649"});
+    assertTrue(testOut.toString().startsWith("-2147483649" + System.lineSeparator() + "Invalid input:"));
+    testOut.reset();
+    PrintBits.main(new String[] {"-t", "int", "2147483649"});
+    assertTrue(testOut.toString().startsWith("2147483649" + System.lineSeparator() + "Invalid input:"));
+    testOut.reset();
+    // we use Long.parse() so it will fail to parse right away
+    PrintBits.main(new String[] {"-t", "long", "-9223372036854775809"});
+    assertTrue(testOut.toString().startsWith("Invalid input:"));
+    testOut.reset();
+    PrintBits.main(new String[] {"-t", "long", "9223372036854775808"});
+    assertTrue(testOut.toString().startsWith("Invalid input:"));
+    testOut.reset();
+  }
+
+  @Test
+  void testMainTypeAndBytesArgsInvalidInput() {
+    final String[] args = new String[] {"-b", "2", "-t", "int", "-1"};
+    PrintBits.main(args);
+
+    assertTrue(testOut.toString().startsWith("Invalid input:"));
+  }
+
+  @Test
+  void testMainUnrecognizedTypeNameArg() {
+    final String[] args = new String[] {"-t", "foo", "-1"};
+    PrintBits.main(args);
+
+    assertTrue(testOut.toString().startsWith("Invalid input:"));
   }
 }

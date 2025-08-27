@@ -4,16 +4,56 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Option;
+import org.apache.commons.cli.OptionGroup;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.help.HelpFormatter;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.stream.IntStream;
 
 public class PrintBits {
+  private static final Options options;
+  private static final OptionGroup bytesDerivationGroup;
+  private static final Option bytesOption;
+  private static final Option typeOption;
+  private static final Option stdInOption;
+  private static final Map<String, Integer> supportedTypes = Map.of(
+      "byte", Byte.BYTES,
+      "short", Short.BYTES,
+      "int", Integer.BYTES,
+      "long", Long.BYTES);
+
+  static {
+    options = new Options();
+    bytesDerivationGroup = new OptionGroup();
+    bytesOption = Option.builder("b")
+        .longOpt("bytes")
+        .hasArg()
+        .argName("bytes-to-print")
+        .desc("The number of bytes to print")
+        .type(Integer.class)
+        .get();
+    typeOption = Option.builder("t")
+        .longOpt("type")
+        .hasArg()
+        .argName("type-name")
+        .desc("The Java primitive data type to use")
+        .type(String.class)
+        .get();
+    stdInOption = Option.builder("i")
+        .longOpt("stdin")
+        .desc("Read from stdin")
+        .get();
+    options.addOption(stdInOption);
+
+    bytesDerivationGroup.addOption(bytesOption);
+    bytesDerivationGroup.addOption(typeOption);
+    options.addOptionGroup(bytesDerivationGroup);
+  }
 
   private static void printByte(final byte b) {
     IntStream.range(0, Byte.SIZE)
@@ -36,7 +76,7 @@ public class PrintBits {
         .map(i -> bytesToPrint - i - 1)
         .forEach(i -> {
           final byte b = (byte) (n >>> (i * Byte.SIZE));
-          PrintBits.printByte(b);
+          printByte(b);
           if (i != 0) {
             System.out.print(" ");
           }
@@ -56,11 +96,12 @@ public class PrintBits {
         (n >= 0 && n <= Integer.MAX_VALUE)) {
       return Integer.BYTES;
     } else {
+      // if we successfully parsed n then it must fit into a long
       return Long.BYTES;
     }
   }
 
-  private static void printHelp(final Options options) {
+  private static void printHelp() {
     final HelpFormatter formatter = HelpFormatter.builder().get();
     try {
       formatter.printHelp(
@@ -74,41 +115,37 @@ public class PrintBits {
     }
   }
 
-  private static Options buildOptions() {
-    final Options options = new Options();
-    options.addOption(Option.builder("b")
-        .longOpt("bytes")
-        .hasArg()
-        .argName("bytes-to-print")
-        .desc("The number of bytes to print")
-        .type(Integer.class)
-        .get());
-    options.addOption(Option.builder("i")
-        .longOpt("stdin")
-        .desc("Read from stdin")
-        .get());
-    return options;
+  private static int getBytesToPrint(
+      final Integer bytes,
+      final long n) throws ParseException {
+    final int minBytes = getMinBytesRequired(n);
+    if (bytes == null) {
+      return minBytes;
+    } else if (bytes < minBytes) {
+      throw new ParseException(n + " requires more than " + bytes + " to print");
+    } else {
+      return bytes;
+    }
   }
 
-  private static int getBytesToPrint(final Integer bytes, final long n) {
-    return (bytes == null) ? getMinBytesRequired(n) : bytes;
-  }
-
-  private static void doPrint(final Integer bytes, final long n) {
+  private static void doPrint(
+      final Integer bytes,
+      final long n) throws ParseException {
     System.out.println(n);
-    PrintBits.printBytes(n, getBytesToPrint(bytes, n));
+    printBytes(n, getBytesToPrint(bytes, n));
     System.out.println();
   }
 
   private static void readFromPositionalArgs(
       final String[] positionalArgs,
-      final Integer bytes) {
-    Arrays.stream(positionalArgs)
-        .mapToLong(Long::parseLong)
-        .forEach(n -> doPrint(bytes, n));
+      final Integer bytes) throws ParseException {
+    for (final String positionalArg : positionalArgs) {
+      long n = Long.parseLong(positionalArg);
+      doPrint(bytes, n);
+    }
   }
 
-  private static void readFromStdin(final Integer bytes) {
+  private static void readFromStdin(final Integer bytes) throws ParseException {
     final Scanner scanner = new Scanner(System.in);
     while (scanner.hasNext()) {
       final long n = scanner.nextLong();
@@ -116,13 +153,31 @@ public class PrintBits {
     }
   }
 
+  public static Integer typeNameToBytes(final String typeName) throws ParseException {
+    final Integer bytes = supportedTypes.get(typeName);
+    if (bytes == null) {
+      throw new ParseException("Unsupported type: " + typeName);
+    }
+    return bytes;
+  }
+
+  private static Integer getBytesFromArgs(final CommandLine cmd) throws ParseException {
+    final Option selectedOption = options.getOption(bytesDerivationGroup.getSelected());
+    if (selectedOption == null) {
+      return null;
+    } else if (selectedOption.equals(bytesOption)) {
+      return cmd.getParsedOptionValue(bytesOption);
+    } else {
+      return typeNameToBytes(cmd.getParsedOptionValue(typeOption));
+    }
+  }
+
   public static void main(final String[] args) {
-    final Options options = buildOptions();
     try {
       final CommandLineParser parser = new DefaultParser();
       final CommandLine cmd = parser.parse(options, args, true);
 
-      final Integer bytes = cmd.getParsedOptionValue(options.getOption("b"));
+      final Integer bytes = getBytesFromArgs(cmd);
       final boolean fromStdin = cmd.hasOption(options.getOption("i"));
       final String[] positionalArgs = cmd.getArgs();
 
@@ -132,7 +187,8 @@ public class PrintBits {
         readFromPositionalArgs(positionalArgs, bytes);
       }
     } catch (final ParseException | NumberFormatException e) {
-      printHelp(options);
+      System.out.println("Invalid input: " + e.getMessage());
+      printHelp();
     }
   }
 }
