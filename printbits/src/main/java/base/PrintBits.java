@@ -18,6 +18,7 @@ import java.util.stream.IntStream;
 public class PrintBits {
   private static final Options options;
   private static final OptionGroup bytesDerivationGroup;
+  private static final Option helpOption;
   private static final Option bytesOption;
   private static final Option typeOption;
   private static final Option stdInOption;
@@ -48,11 +49,16 @@ public class PrintBits {
         .longOpt("stdin")
         .desc("Read from stdin")
         .get();
-    options.addOption(stdInOption);
+    helpOption = Option.builder("h")
+        .longOpt("help")
+        .desc("Print help text")
+        .get();
 
     bytesDerivationGroup.addOption(bytesOption);
     bytesDerivationGroup.addOption(typeOption);
     options.addOptionGroup(bytesDerivationGroup);
+    options.addOption(stdInOption);
+    options.addOption(helpOption);
   }
 
   private static void printByte(final byte b) {
@@ -176,6 +182,11 @@ public class PrintBits {
     try {
       final CommandLineParser parser = new DefaultParser();
       final CommandLine cmd = parser.parse(options, args, true);
+
+      if (cmd.hasOption(helpOption)) {
+        printHelp();
+        return;
+      }
 
       final Integer bytes = getBytesFromArgs(cmd);
       final boolean fromStdin = cmd.hasOption(options.getOption("i"));

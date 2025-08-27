@@ -206,7 +206,16 @@ class PrintBitsTest {
   }
 
   @Test
-  void testMainOverflow() {
+  void testMainHelpText() {
+    PrintBits.main(new String[] {"-h"});
+    assertTrue(testOut.toString().startsWith(" usage:"));
+    testOut.reset();
+    PrintBits.main(new String[] {"--help"});
+    assertTrue(testOut.toString().startsWith(" usage:"));
+  }
+
+  @Test
+  void testMainOverflowInvalidInput() {
     PrintBits.main(new String[] {"-b", "1", "-129"});
     assertTrue(testOut.toString().startsWith("-129" + System.lineSeparator() + "Invalid input:"));
     testOut.reset();
