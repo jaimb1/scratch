@@ -128,7 +128,7 @@ public class PrintBits {
     if (bytes == null) {
       return minBytes;
     } else if (bytes < minBytes) {
-      throw new ParseException(n + " requires more than " + bytes + " to print");
+      throw new ParseException(n + " requires more than " + bytes + " byte(s) to print in twos complement form");
     } else {
       return bytes;
     }
